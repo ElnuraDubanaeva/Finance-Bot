@@ -5,6 +5,8 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 from database.bot_db import DataBase
 from keyboards.client_kb import (
     submit_markup,
+    not_user_markup,
+    cancel_markup
 )
 
 
@@ -16,16 +18,22 @@ class FSMAdminNeeds(StatesGroup):
     
 
 async def fsm_start(message: types.Message):
-    await FSMAdminNeeds.info.set()
-    available = await DataBase.get_user_needs(f"@{message.from_user.username}")
-    if available["available"] <= 0:
-        await message.answer("У вас не осталось днег")
-    await message.answer(
-        f"\nОбщая сумма: {available['total']}"
-        f"\nОсталось: {available['available']}"
-        f"\nПотратили: {available['wasted']}"
-        )
-    await message.answer("На что потратили?")
+    result = await DataBase.get_user_id(username=f"@{message.from_user.username}")
+    if result is None:
+        await message.answer("Чтобы вести учет сначало пройдите регистрацию /reg",
+                             reply_markup=not_user_markup)
+    else:
+        await FSMAdminNeeds.info.set()
+        available = await DataBase.get_user_needs(f"@{message.from_user.username}")
+        if available["available"] <= 0:
+            await message.answer("У вас не осталось днег")
+        await message.answer(
+            f"\nОбщая сумма: {available['total']}"
+            f"\nОсталось: {available['available']}"
+            f"\nПотратили: {available['wasted']}"
+            )
+        await message.answer("На что потратили?",
+                             reply_markup=cancel_markup)
 
 async def load_info(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -33,7 +41,8 @@ async def load_info(message: types.Message, state: FSMContext):
         data["username"] = f"@{message.from_user.username}"
     await FSMAdminNeeds.next()
     await FSMAdminNeeds.next()
-    await message.answer("Сколько сомов?")
+    await message.answer("Сколько сомов?", 
+                         reply_markup=cancel_markup)
     
 async def load_amount(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -54,7 +63,7 @@ async def submit(message: types.Message, state: FSMContext):
             "\n<b> Хорошего дня!</b>🤗 ",
             parse_mode="HTML",
         )
-    elif message.text in ["НЕТ", "CANCEL"]:
+    elif message.text in ["НЕТ", "Отмена"]:
         await message.answer(
             "Отмена! Чтобы заново пройти регистрацию нажмите на команду /reg"
         )
@@ -73,7 +82,7 @@ async def cancel_reg(message: types.Message, state: FSMContext):
 def register_handlers_fsm_needs(dp: Dispatcher):
     dp.register_message_handler(cancel_reg, state="*", commands=["CANCEL"])
     dp.register_message_handler(
-        cancel_reg, Text(equals=["CANCEL", "Отмена"], ignore_case=True), state=["*"]
+        cancel_reg, Text(equals="Отмена", ignore_case=True), state=["*"]
     )
     dp.register_message_handler(fsm_start, commands=["needs"])
     dp.register_message_handler(load_info, state=FSMAdminNeeds.info)

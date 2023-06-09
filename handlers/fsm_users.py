@@ -3,7 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import StatesGroup, State
 
-from services.decorators import validate_int
+from services.decorators import validate_int, validate_procent
 from database.bot_db import DataBase
 from keyboards.client_kb import (
     submit_markup,
@@ -57,7 +57,7 @@ async def load_age(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["age"] = int(message.text)
     await FSMAdminInfo.next()
-    await message.answer("Укажите зарплату за месяц")
+    await message.answer("Укажите зарплату за месяц", reply_markup=cancel_markup)
 
 
 @validate_int
@@ -70,7 +70,7 @@ async def load_salary(message: types.Message, state: FSMContext):
         )   
 
 
-@validate_int
+@validate_procent
 async def load_invests(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["invests"] = message.text
@@ -80,7 +80,7 @@ async def load_invests(message: types.Message, state: FSMContext):
         )
 
 
-@validate_int
+@validate_procent
 async def load_needs(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data["needs"] = message.text
@@ -110,7 +110,7 @@ async def submit(message: types.Message, state: FSMContext):
             "\n<b> Хорошего дня!</b>🤗 ",
             parse_mode="HTML",
         )
-    elif message.text == ["НЕТ", "CANCEL"]:
+    elif message.text in ["НЕТ", "CANCEL"]:
         await message.answer(
             "Отмена! Чтобы заново пройти регистрацию нажмите на команду /reg"
         )
